@@ -1,0 +1,480 @@
+---
+title: "Expanding the data wrangling toolkit: demos"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r libraries}
+library(tidyverse)     # for data cleaning and plotting
+library(gardenR)       # for Lisa's garden data
+library(lubridate)     # for date manipulation
+library(palmerpenguins)# for Palmer penguin data
+```
+
+```{r data}
+# Lisa's garden data
+data("garden_harvest")
+
+# Seeds/plants (and other garden supply) costs
+data("garden_spending")
+
+# Planting dates and locations
+data("garden_planting")
+
+# Garden layout
+data("garden_coords")
+
+# Palmer penguins
+data("penguins")
+
+# US tuition by state data
+us_avg_tuition <- read_csv("https://www.dropbox.com/s/9e0paradcwvuzll/us_avg_tuition.csv?dl=1") %>% 
+   mutate(across(starts_with("20"), parse_number))
+```
+
+## Changing the data layout with pivot functions
+
+### `pivot_longer()`
+
+#### Example from tutorial
+
+We want to change the `us_avg_tuition` data so that year and average tuition are columns in the dataset.
+
+```{r}
+us_avg_tuition %>% 
+  pivot_longer(cols = -State,
+               names_to = "year",
+               values_to = "avg_tuition")
+```
+
+#### Another use for `pivot_longer()`
+
+Another time I use `pivot_longer()` is when I want to create the same type of graph for different variables.
+
+For example, I might want to make a histogram for each of the body measurements in the `penguins` data:
+
+```{r}
+penguins
+```
+
+Instead of doing them each by hand, I can use `pivot_longer()` with `facet_wrap()`.
+
+First, create the long data:
+
+```{r}
+
+```
+
+Then, create the faceted plot:
+
+```{r}
+
+```
+
+### `pivot_wider()`
+
+#### Example from the tutorial
+
+I first created the `penguins_fake` dataset by using ... `pivot_longer()`!
+
+```{r}
+ penguins %>% 
+  mutate(obs = row_number()) %>% 
+  pivot_longer(cols = bill_length_mm:body_mass_g,
+               names_to = "measurement",
+               values_to = "value")
+```
+
+Let's use `pivot_wider()` to change it back to what the original `penguins` data looked like:
+
+```{r}
+
+ penguins %>% 
+mutate(obs = row_number()) %>%
+  pivot_wider(id_cols = species:obs,
+               names_from = measurement,
+               values_from = value)
+
+
+```
+
+#### Another use for `pivot_wider()`
+
+Here I have summarized the data for a tomatoes, peas, beans, and lettuce to find the total weight harvested on each day of the week. This table is pretty long to look through. 
+
+```{r}
+a<-garden_harvest %>% 
+  filter(vegetable %in% c("tomatoes", "peas", "beans", "lettuce")) %>% 
+  mutate(day = wday(date, label = TRUE)) %>% 
+  group_by(vegetable, day) %>% 
+  summarize(total_weight = sum(weight))
+
+a
+```
+
+For looking at the results, I would rather have a column for each vegetable. Keep in mind, this is just for *viewing* the results. I'm assuming I won't be doing further analysis. If I want to keep playing with the data, it's better to leave it in its current form.
+
+```{r}
+a %>%
+pivot_wider(id_cols = day,
+            names_from = vegetable,
+            values_from = total_weight)
+
+```
+
+Although this is no longer tidy data, it is a much nicer way to look at the summarized data. Later in the course, we will talk about ways we can make this table look even nicer. 
+
+## Joining
+
+The tutorial gave you some nice, simple examples of joins. I find that joining tables very quickly gets messy. So one good piece of advice I have is to always sketch out (and talk aloud!) what you're trying to do, first, before setting out to code it. And, have a pretty good idea of how many rows you expect the resulting join to have BEFORE doing the join.
+
+First, let me show you the layout of my garden as well as I can:
+
+```{r, fig.width=5, fig.height=6}
+for_labs <- garden_coords %>% 
+  group_by(plot) %>% 
+  summarize(x = mean(x),
+            y = mean(y))
+
+garden_coords %>% 
+  ggplot(aes(x = x, y = y, group = plot)) +
+  geom_polygon() +
+  geom_text(data = for_labs, 
+            aes(x = x, y = y, label = plot), 
+            color = "hotpink",
+            size = 6) +
+  theme(panel.background = element_rect(fill = "lightgray"))
+```
+
+Now, let me introduce you to some new garden data! Let's open up the new ones and take a look (also look at where the datasets are loaded). **NOTE: I have recently updated this file to read in the data from the `gardenR` library. So, the datasets have different names than in the demo video.**
+
+### Example 1
+
+I would like to investigate the question: how many days from the date the variety of vegetable was planted did I get my first harvest? That means I need to join information from the `garden_planting` table to the `garden_harvest` table. 
+
+First, I try joining them by `vegetable` and `variety`. I am expecting to get the same number of rows that are in the `garden_harvest` dataset:
+
+```{r}
+
+garden_harvest %>% 
+  left_join(garden_planting,
+            by=c("variety","vegetable"))
+
+```
+
+What happened? I have many more rows than I would have expected. Let's investigate a bit. Look at the first three radish harvests. The date and weight are all the same but there are three different plots. 
+
+Unfortunately, when I collected the garden data, I did *not* keep track of the plot it was harvested from. In many cases, this doesn't matter because the variety was only harvested in one of the plots. But, in the cases where they are harvested in more than one plot, this will be a problem because there will be a row for each plot. This will happen every time that vegetable variety is harvested.
+
+There were also vegetable varieties that I planted on multiple dates. This will lead to a similar problem.
+
+So, to answer the question we are interested, I am going to summarize the `garden_planting` dataset first. For each vegetable and variety, I will find the minimum date. I will save that as a new dataset called `plant_min_date`.
+
+```{r}
+
+plant_min_date <- garden_planting %>% 
+  group_by(vegetable,variety) %>% 
+  summarise(min_date = min(date))
+
+plant_min_date
+
+
+
+```
+
+Notice `plant_min_date` has fewer rows than `garden_planting`.
+
+Now let's join this dataset to the `garden_harvest` data:
+
+```{r}
+
+garden_harvest %>% 
+  left_join(plant_min_date,
+            by=c("variety","vegetable"))
+
+```
+
+It looks like we have the right number of rows now. When we scroll through, we see there are some missing `first_planting`. Which ones are missing?
+
+```{r}
+garden_harvest %>% 
+  left_join(plant_min_date,
+            by = c("vegetable", "variety")) %>% 
+  filter(is.na(plant_min_date))
+```
+
+This is what we would expect.
+
+Now (finally!) we can find how many days from the date the variety of vegetable was planted did I get my first harvest? Let's write out a plan for how to do this:
+
+1. Join the datasets 
+2. Compute the difference between the `date` and `first_plant_date` (look at the result - it's a special duration field)
+3. For each vegetable and variety (for each = use `group_by()`!)  
+4. Compute the smallest difference  
+5. Arrange by vegetable and difference (maybe there is an even better way to organize?)
+
+```{r}
+
+
+
+```
+
+How could we fix the missing values?
+
+One way would be to use an `inner_join()`. Let's try that. 
+
+```{r}
+
+```
+
+What assumptions does this make?
+
+Now, let's try doing an full_join()
+
+```{r}
+garden_harvest %>% 
+
+```
+
+### Example 2
+
+I may only want to analyze data from vegetables that are a certain seed brand. Let's only keep `garden_harvest` data from seeds that are "Renee's Garden" brand. We will start with the `garden_harvest` data and `semi_join()` to a filtered subset of the `garden_spending` data.
+
+```{r}
+
+```
+
+### Other ideas
+
+I would love to know how much money I saved (hopefully?) by having a garden. Could I collected data on how much a pound of organic vegetables would cost and compare to what I produced? How might you go about doing this?
+
+
+## Working with factors
+
+We will look at a subset of the `garden_harvest` data: the tomatoes.
+
+```{r}
+
+```
+
+Let's look at the default order of variety. We will do this by counting how many harvests of each variety. The order they are printed is the default ordering.
+
+```{r}
+
+```
+
+We can see the default is alphabetical.
+
+### `fct_relevel()`
+
+We can manually change the order using `fct_relevel()`. I will put "Black Krim" and "Cherokee Purple" 1st and 2nd since they are my favorites. The rest of the levels will remain as is.
+
+I can either do this by creating a new variable:
+
+```{r}
+
+```
+
+or by putting it inside the `count()`:
+
+```{r}
+
+```
+
+or, if I'm graphing it, putting it inside an x or y aesthetic:
+
+```{r}
+
+```
+
+### `fct_infreq()`
+
+The `fct_infreq()` function puts the levels in order by frequency (how often they occur), from most to least. Let's try this with the tomatoes.
+
+```{r}
+
+```
+
+Like with `fct_relevel()` we can also use `fct_infreq()` directly in a plotting aesthetic:
+
+```{r}
+
+```
+
+### `fct_reorder()`
+
+The `fct_reorder()` function allows us to reorder a factor by the value of another variable. So, I could order the tomatoes by the greatest harvest weight to least harvest weight. 
+
+This function has three arguments: factor you want reordered, the variable you want to reorder by, and the function that should be performed on the reordering variable. There is a 4th optional argument `.desc=TRUE` which will sort from largest to smallest rather than the default smallest to largest.
+
+In the summary below, I include both the count and the summed weight so you can clearly see that the ordering is correct.
+
+```{r}
+
+```
+
+### `fct_rev()`
+
+The `fct_rev()` function reverses the current order. I often use this in combination with `fct_infreq()`. Let's see how that changes the plot we created above.
+
+```{r}
+
+```
+
+### fct_recode()
+
+This is a way to manually create new levels. A simple example would be if I wanted to capitalize the "grape" and "volunteers" levels to match everything else. The format of this function is:
+
+```{r, eval=FALSE}
+
+```
+
+```{r}
+
+```
+
+### `fct_lump()`
+
+This is an easy way to group together less common levels. Let's go back to the full `garden_harvest` data. First, let's count the number of harvests of each vegetable and arrange by descending n.
+
+```{r}
+
+```
+
+You can tell `fct_lump()` either how many levels you want to preserve by providing `n=` argument or you can tell it to preserve levels that appear at least a certain proportion of time by providing `prop=` argument. Below, we preserve the top 9 vegetables and lump all others together. 
+
+```{r}
+
+```
+
+## Working with strings
+
+Let's create a small dataset. The same one that is in the tutorial.
+
+```{r}
+family <- tibble(name = c("Lisa Lendway", "Chris Fischer", "Adeline Lendway", "Hadley Lendway"),
+                 adult = c(TRUE, TRUE, FALSE, FALSE))
+family
+```
+
+### separate()
+
+`separate()`: separates a character variable into multiple variables. The default is to separate on anything that is not an alpha or numeric character.
+
+We can pipe the data right into this function. 
+
+* The first argument is the variable we want to separate. 
+
+* The 2nd argument, `into =` is a character vector giving the names of the new variables we want to create. 
+
+* There are other optional arguments. For example, in the code below I set `remove = FALSE` which means the original variable is not removed as opposed to the default `remove = TRUE` which removes the original variable.
+
+```{r}
+
+```
+
+
+Let's change the data a little bit:
+
+```{r}
+family2 <- tibble(name = c("Lendway, Dr. Lisa", "Fischer, Mr. Chris", "Lendway, Ms. Adeline", "Lendway, Ms. Hadley"),
+                 adult = c(TRUE, TRUE, FALSE, FALSE))
+family2
+```
+
+Let's see the default behavior when we separate into three new columns: "last", "title", "first".
+
+```{r}
+
+```
+
+By default "." is a separator. If I want to keep the "." in the title. Then, I need to write a fairly complicated regular expression to tell it how to separate.
+
+```{r}
+family2 %>% 
+  separate(name,
+           into = c("last", "title", "first"),
+           sep = "([[:space:]]|,)+")
+```
+
+The ugly-looking piece to the right of `sep`, "([[:space:]]|,)+", can be broken down into pieces:
+
+* [[:space:]] means spaces
+
+* the vertical bar (|) means "or", 
+
+* the "," is the comma character
+
+* the + means it satisfies one or more of the matching criteria
+
+So, we are telling it that a space or a comma is a separator. 
+Regular expressions are hard to write! Use the cheatsheet.
+
+### `str_length()`
+
+`str_length()`: gives the number of characters in the string (includes white space, punctuation, etc.)  
+
+Let's create a variable that gives the string length for name.
+
+```{r}
+
+```
+
+### `str_to_lower()`
+
+`str_to_lower()`: makes the characters lowercase  
+
+Can be a useful function when joining two datasets and you are unsure if the data was recorded with the same capitalization scheme in both. Make the variables you will join on lowercase.
+
+Let's make the name lowercase:
+
+```{r}
+
+```
+
+### `str_sub()`
+
+`str_sub()`: extract part of a string. This is useful when you want characters (or numbers) in certain positions in the string.
+
+We will use this to extract the first three letters of the name and the last three letters of the name (use negative numbers).
+
+```{r}
+
+```
+
+### `str_detect()`
+
+`str_detect()`: returns TRUE/FALSE if a pattern is in the string
+
+We will detect if the pattern "ad" is in the name
+
+```{r}
+
+```
+
+Notice it does not detect the pattern "ad" in "Adeline" because the A is capitalized. If we want it to detect both, we can use "A|ad", which means the it will detect with either a capital or lowercase "a".
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
