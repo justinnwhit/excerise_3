@@ -9,7 +9,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+#knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 ```{r libraries}
@@ -115,7 +115,11 @@ a<-garden_harvest %>%
   filter(vegetable %in% c("tomatoes", "peas", "beans", "lettuce")) %>% 
   mutate(day = wday(date, label = TRUE)) %>% 
   group_by(vegetable, day) %>% 
-  summarize(total_weight = sum(weight))
+  summarize(total_weight = sum(weight)) %>% 
+  ungroup() %>% 
+  pivot_wider(id_cols=day,
+               names_from=vegetable,
+               values_from=total_weight)
 
 a
 ```
@@ -165,8 +169,11 @@ First, I try joining them by `vegetable` and `variety`. I am expecting to get th
 ```{r}
 
 garden_harvest %>% 
-  left_join(garden_planting,
-            by=c("variety","vegetable"))
+  group_by(vegetable, variety) %>% 
+  summarize(first_date = min(date)) %>%
+  ungroup() %>% 
+  left_join(garden_planting, 
+   by=c("variety","vegetable"))
 
 ```
 
@@ -301,11 +308,26 @@ The `fct_infreq()` function puts the levels in order by frequency (how often the
 
 ```{r}
 
+garden_harvest %>% 
+  filter(vegetable == "tomatoes") %>%
+  mutate(variety_freq=fct_infreq(variety)) %>% 
+  count(variety_freq)
+
 ```
 
-Like with `fct_relevel()` we can also use `fct_infreq()` directly in a plotting aesthetic:
+
+
+
+
+Like with `fct_infreq()` directly in a plotting aesthetic:
 
 ```{r}
+
+garden_harvest %>% 
+  filter(vegetable == "tomatoes") %>%
+  ggplot(aes(y=fct_rev(fct_infreq(variety)))+
+  geom_bar()
+  
 
 ```
 
@@ -318,6 +340,12 @@ This function has three arguments: factor you want reordered, the variable you w
 In the summary below, I include both the count and the summed weight so you can clearly see that the ordering is correct.
 
 ```{r}
+
+garden_harvest %>% 
+  filter(vegetable == "tomatoes") %>%
+  ggplot(aes(x=weight,
+             y=fct_reorder(variety,weight, median)))+
+  geom_boxplot()
 
 ```
 

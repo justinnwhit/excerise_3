@@ -155,10 +155,9 @@ garden_harvest %>%
 
 garden_harvest %>% 
   mutate(lower=str_to_lower(variety)) %>% 
-  summarise(unqiues = unique(lower)) %>% 
-  summarise(list=as.list(uniques)) %>% 
-  str_detect(list, "e")
-
+  summarise(uniques = unique(lower)) %>% 
+  #summarise(list=as.list(uniques)) %>% 
+  filter(str_detect(uniques,"er|ar"))
 
 
 ```
@@ -237,7 +236,7 @@ Trips %>%
   geom_density()
 
 
-Why so many lines
+***Why so many lines
 ```
   
   10. Facet your graph from exercise 8. by day of the week. Is there a pattern?
@@ -249,6 +248,8 @@ b <- Trips %>%
   ggplot(aes(x=time))+
   geom_density()+
   facet_wrap(vars(day))
+
+b
 
 ```
   
@@ -321,6 +322,8 @@ Stations %>%
   geom_density()+
   facet_geo(vars(lat,long))
 
+
+** where to use lat and long
 ```
   
   16. Only 14.4% of the trips in our data are carried out by casual users. Create a plot that shows which area(s) have stations with a much higher percentage of departures by casual users. What patterns do you notice? (Again, we'll improve this next week when we learn about maps).
@@ -357,6 +360,7 @@ breed_traits_total
 #   geom_point()
   
 
+Pivot
 
 
 ```
