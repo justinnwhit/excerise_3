@@ -333,17 +333,19 @@ Trips %>%
 
 Stations %>% 
   inner_join(Trips,
-             by=c("name"="sstation")) %>%
-  group_by(name) %>% 
+             by=c("name"="sstation")) %>% 
+  group_by(lat,long) %>% 
   ggplot(aes(x=name))+
-  geom_density()+
-  facet_geo(vars(lat,long))
+  geom_bar()+
+  facet_geo(name)
 
 ```
   
   16. Only 14.4% of the trips in our data are carried out by casual users. Create a plot that shows which area(s) have stations with a much higher percentage of departures by casual users. What patterns do you notice? (Again, we'll improve this next week when we learn about maps).
   
 ```{r}
+
+
 
 
 
@@ -360,22 +362,19 @@ In this section, we'll use the data from 2022-02-01 Tidy Tuesday. If you didn't 
 
 ```{r,.height=20, fig.width=10}
 
-breed_traits_total <- breed_traits %>%
-  group_by(Breed) %>% 
-  mutate(total_rating = sum(`Affectionate With Family`:`Mental Stimulation Needs`))) %>% 
-  select(total_rating) %>%
-  arrange(desc(total_rating)) %>% 
-  filter(total_rating != 0)
+breed_traits %>% 
+pivot_longer(cols =c(-Breed,-`Coat Length`,-`Coat Type`),
+              names_to="trait",
+              values_to = "value") %>% 
+    group_by(Breed) %>% 
+    summarise(total_rating=sum(value)) %>% 
 
-  
-breed_traits_total
+  select(Breed,total_rating) %>%
+  mutate(Breed = fct_reorder(Breed,total_rating,sum)) %>% 
+  filter(total_rating != 0) %>% 
+  ggplot(aes(y=Breed,x=total_rating)) +
+  geom_point()
 
-# breed_traits_total %>% 
-#   ggplot(aes(x=total_rating,y=Breed,))+
-#   geom_point()
-  
-
-Pivot
 
 
 ```
