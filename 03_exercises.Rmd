@@ -232,8 +232,8 @@ Trips %>%
 
 Trips %>% 
   mutate(day=wday(sdate,label=TRUE)) %>% 
-  ggplot(aes(x=day))+
-  geom_density()
+  ggplot(aes(y=day))+
+  geom_bar()
 
 
 ***Why so many lines
@@ -293,11 +293,18 @@ Trips %>%
 Trips %>% 
   mutate(time=hour(sdate)+(minute(sdate)/60),
          day=wday(sdate,label=TRUE),
-         weekend = "weekend", ifelse((wday(sdate))=sat |sun) %>% 
-  
+         weekend =ifelse(str_detect(day,"S"), "weekend","weekday")) %>% 
   ggplot(aes(x=time))+
-  geom_density(aes(fill=client),alpha=.5,color=NA)+
-  facet_wrap(vars(day))
+  geom_density(aes(fill=client),alpha=.5,color=NA,position = position_stack())+
+  facet_wrap(vars(weekend))
+  
+   #mutate(c_names=ifelse(str_detect(first_name,"C"),TRUE,FALSE))
+  #          
+  #          
+  #          
+  # ggplot(aes(x=time))+
+  # geom_density(aes(fill=client),alpha=.5,color=NA)+
+  # facet_wrap(vars(day))
 
 
 ```
@@ -306,7 +313,17 @@ Trips %>%
   
 ```{r}
 
+Trips %>% 
+  mutate(time=hour(sdate)+(minute(sdate)/60),
+         day=wday(sdate,label=TRUE),
+         weekend =ifelse(str_detect(day,"S"), "weekend","weekday")) %>% 
+  ggplot(aes(x=time))+
+  geom_density(aes(fill=weekend),alpha=.5,color=NA,position = position_stack())+
+  facet_wrap(vars(client))
+
 ```
+  
+  This graph makes it easier to compare within the same client, whereas the last made it easier to compare by time of the week. I dont think one is better than the other, but that they answer different questions.
   
 ### Spatial patterns
 
@@ -322,8 +339,6 @@ Stations %>%
   geom_density()+
   facet_geo(vars(lat,long))
 
-
-** where to use lat and long
 ```
   
   16. Only 14.4% of the trips in our data are carried out by casual users. Create a plot that shows which area(s) have stations with a much higher percentage of departures by casual users. What patterns do you notice? (Again, we'll improve this next week when we learn about maps).
