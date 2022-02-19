@@ -186,7 +186,7 @@ Here is the code to read in the data. We do this a little differently than usual
 
 ```{r cache=TRUE}
 data_site <- 
-  "https://www.macalester.edu/~dshuman1/data/112/2014-Q4-Trips-History-Data-Small.rds" 
+  "https://www.macalester.edu/~dshuman1/data/112/2014-Q4-Trips-History-Data.rds" 
 Trips <- readRDS(gzcon(url(data_site)))
 Stations<-read_csv("http://www.macalester.edu/~dshuman1/data/112/DC-Stations.csv")
 ```
@@ -348,9 +348,19 @@ Stations %>%
 
 ```
   
-  16. Only 14.4% of the trips in our data are carried out by casual users. Create a plot that shows which area(s) have stations with a much higher percentage of departures by casual users. What patterns do you notice? (Again, we'll improve this next week when we learn about maps).
+******  16. Only 14.4% of the trips in our data are carried out by casual users. Create a plot that shows which area(s) have stations with a much higher percentage of departures by casual users. What patterns do you notice? (Again, we'll improve this next week when we learn about maps).
   
 ```{r}
+
+
+Stations %>% 
+  left_join(Trips,
+             by=c("name"="sstation")) %>% 
+  group_by(lat,long) %>%
+  ggplot(aes(x=lat, y=long,color=client))+
+  geom_point()
+
+
 
 
 
@@ -410,7 +420,7 @@ year_rank
 
 ```
   
-  19. Create your own! Requirements: use a `join` or `pivot` function (or both, if you'd like), a `str_XXX()` function, and a `fct_XXX()` function to create a graph using any of the dog datasets. One suggestion is to try to improve the graph you created for the Tidy Tuesday assignment. If you want an extra challenge, find a way to use the dog images in the `breed_rank_all` file - check out the `ggimage` library and [this resource](https://wilkelab.org/ggtext/) for putting images as labels.
+*******  19. Create your own! Requirements: use a `join` or `pivot` function (or both, if you'd like), a `str_XXX()` function, and a `fct_XXX()` function to create a graph using any of the dog datasets. One suggestion is to try to improve the graph you created for the Tidy Tuesday assignment. If you want an extra challenge, find a way to use the dog images in the `breed_rank_all` file - check out the `ggimage` library and [this resource](https://wilkelab.org/ggtext/) for putting images as labels.
   
   
 ```{r}
@@ -418,7 +428,7 @@ airmen <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tid
 
 ```
   
-```{r}
+```{r,width=30,height=15}
 
 airmen %>% 
   mutate(c_names=ifelse(str_detect(first_name,"C"),TRUE,FALSE)) %>%
@@ -428,12 +438,16 @@ airmen %>%
   filter(! is.na(rank_at_graduation)) %>% 
   filter(rank_at_graduation != "N/A") %>%
   filter(rank_at_graduation != "Unk") %>% 
-  str_pad("state",30,"both")
-%>%
-  ggplot(aes(y=n_names, x=rank_at_graduation, color=state))+
+  mutate(state =str_pad("state",30,"both"))%>%
+  group_by(class) %>% 
+  pivot_wider(id_cols=c(-rank_at_graduation,-class),
+              names_from = rank_at_graduation,
+              values_from = class) %>% 
+  ggplot(aes(y=n_names, x=`2nd Lt`))+
   geom_point(size=4)+
+  theme(axis.text.x=element_text(angle=90, hjust=1))
   
-  labs(title="Tuskegee airmen with C in their name across the US by rank", y="Number of Airmen with C in their name", x = "Rank")
+  labs(title="@nd Lt Tuskegee airmen with C in their name by Class", y="Number of Airmen with C in their name", x ="Class")
 
 
 ```
@@ -441,6 +455,10 @@ airmen %>%
 ## GitHub link
 
   20. Below, provide a link to your GitHub page with this set of Weekly Exercises. Specifically, if the name of the file is 03_exercises.Rmd, provide a link to the 03_exercises.md file, which is the one that will be most readable on GitHub.
+
+https://github.com/justinnwhit/excerise_3/blob/a2cb84da8772645d466e8762fdf7e18dd1aaee67/03_exercises.Rmd
+
+
 
 ## Challenge problem! 
 
