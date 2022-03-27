@@ -1,6 +1,6 @@
 ---
 title: 'Weekly Exercises #5'
-author: "Put your name here"
+author: "Justin"
 output: 
   html_document:
     keep_md: TRUE
@@ -19,6 +19,7 @@ output:
 library(tidyverse)     # for data cleaning and plotting
 library(gardenR)       # for Lisa's garden data
 library(lubridate)     # for date manipulation
+library(ggimage)
 library(openintro)     # for the abbr2state() function
 library(palmerpenguins)# for Palmer penguin data
 library(maps)          # for map data
@@ -83,9 +84,52 @@ Once your repository is created, you should always open your **project** rather 
 
   1. Choose 2 graphs you have created for ANY assignment in this class and add interactivity using the `ggplotly()` function.
   
+```{r}
+data_site <- 
+  "https://www.macalester.edu/~dshuman1/data/112/2014-Q4-Trips-History-Data-Small.rds" 
+Trips <- readRDS(gzcon(url(data_site)))
+Stations<-read_csv("http://www.macalester.edu/~dshuman1/data/112/DC-Stations.csv")
+```
+  
+  
+```{r, fig.alt="this is an animated graph showing number of rides throught the day. The graph demonstrates that the morning is the busiest time"}
+
+
+Trips %>% 
+  mutate(time=hour(sdate)+(minute(sdate)/60)) %>% 
+  ggplot(aes(x=time))+
+  geom_density()+
+  transition_reveal(time)
+
+
+```
+  
+  
+```{r, fig.alt="This animaed graph shows usership of rides seperated by causal client or member client. The graph demonstrates that members dominate at start and end of "work day" and casual users dominate the middle day"}
+
+Trips %>% 
+  mutate(time=hour(sdate)+(minute(sdate)/60)) %>%
+  mutate(day=wday(sdate,label=TRUE)) %>% 
+  ggplot(aes(x=time))+
+  geom_density(aes(fill=client),alpha=.5,color=NA)+
+  labs(title = "Scooter Trips by user type",
+       subtitle = "day: {closest_state}",
+       x = "",
+       y = "")+
+  transition_states(day)
+
+```
+  
+  
+  
   2. Use animation to tell an interesting story with the `small_trains` dataset that contains data from the SNCF (National Society of French Railways). These are Tidy Tuesday data! Read more about it [here](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-02-26).
 
 ```{r}
+
+small_trains %>%
+  ggplot(aes(x=month))+
+  geom_density(aes(fill=`delay_cause`),alpha=.5,color=NA,position = position_stack())+
+  transition_states(month)
 
 ```
 
@@ -99,7 +143,7 @@ Once your repository is created, you should always open your **project** rather 
 
 I have started the code for you below. The `complete()` function creates a row for all unique `date`/`variety` combinations. If a variety is not harvested on one of the harvest dates in the dataset, it is filled with a value of 0.
 
-```{r}
+```{r, fig.alt="This animation shows cumulative harvest of all variesties of tomatoes over the course of growing season. The tomatoes are arranged from highest cummulative harvest to lowest}
 garden_harvest %>% 
   filter(vegetable == "tomatoes") %>% 
   group_by(date, variety) %>% 
@@ -107,7 +151,11 @@ garden_harvest %>%
   ungroup() %>% 
   complete(variety, 
            date, 
-           fill = list(daily_harvest_lb = 0))
+           fill = list(daily_harvest_lb = 0)) %>%
+  mutate(cum_harvest=cumsum(daily_harvest_lb)) %>% 
+  ggplot(aes(y=cum_harvest,x=date))+
+  geom_area(aes(fill=variety))+
+  transition_reveal(date)
 ```
 
 
@@ -123,9 +171,68 @@ garden_harvest %>%
   * CHALLENGE: use the `ggimage` package and `geom_image` to add a bike image instead of a red point. You can use [this](https://raw.githubusercontent.com/llendway/animation_and_interactivity/master/bike.png) image. See [here](https://goodekat.github.io/presentations/2019-isugg-gganimate-spooky/slides.html#35) for an example. 
   * Add something of your own! And comment on if you prefer this to the static map and why or why not.
   
+```{r}
+image<-"https://raw.githubusercontent.com/llendway/animation_and_interactivity/master/bike.png"
+
+world <- get_stamenmap(
+    bbox = c(left = 2.3191, bottom = 39.4982, right = 2.7573, top = 39.7143), 
+    maptype = "terrain",
+    zoom = 12)
+
+# Plot the points on the map
+ggmap(world) + # creates the map "background"
+  geom_path(data = mallorca_bike_day7, 
+             aes(x = lon, y = lat, color = `ele`), 
+             alpha = .9, 
+             size = 0.9) +
+  geom_point+
+  
+  theme_map()+
+  labs(title = "Mallorca day 7 bike ride",
+       subtitle = "`time`: {frame_along}",
+       x = "",
+       y = "")+
+  geom_image(aes(image = image),
+             size = 0.2)+
+   transition_reveal(`time`)
+
+where is my leading bike
+
+
+```
+  
+  
   5. In this exercise, you get to meet Lisa's sister, Heather! She is a proud Mac grad, currently works as a Data Scientist where she uses R everyday, and for a few years (while still holding a full-time job) she was a pro triathlete. You are going to map one of her races. The data from each discipline of the Ironman 70.3 Pan Am championships, Panama is in a separate file - `panama_swim`, `panama_bike`, and `panama_run`. Create a similar map to the one you created with my cycling data. You will need to make some small changes: 1. combine the files putting them in swim, bike, run order (HINT: `bind_rows()`), 2. make the leading dot a different color depending on the event (for an extra challenge, make it a different image using `geom_image()!), 3. CHALLENGE (optional): color by speed, which you will need to compute on your own from the data. You can read Heather's race report [here](https://heatherlendway.com/2016/02/10/ironman-70-3-pan-american-championships-panama-race-report/). She is also in the Macalester Athletics [Hall of Fame](https://athletics.macalester.edu/honors/hall-of-fame/heather-lendway/184) and still has records at the pool. 
   
-```{r}
+```{r, fig.alt="this animation shows a triathalon athletes journey around the city of Panama. event type is discernable by color"}
+
+d<-bind_rows(panama_swim,panama_bike,panama_run)
+
+image<-"https://raw.githubusercontent.com/llendway/animation_and_interactivity/master/bike.png"
+
+world <- get_stamenmap(
+    bbox = c(left =-79.5867, bottom =8.8934, right =-79.4160, top = 9.0156), 
+    maptype = "terrain",
+    zoom = 10)
+
+# Plot the points on the map
+ggmap(world) + # creates the map "background"
+  geom_path(data = d, 
+             aes(x = lon, y = lat, color = `event`), 
+             alpha = .9, 
+             size = 0.9) +
+  geom_point()+
+  
+  theme_map()+
+  labs(title = "Mallorca day 7 bike ride",
+       subtitle = "`time`: {frame_along}",
+       x = "",
+       y = "")+
+  geom_image(aes(image = image),
+             size = 0.2)+
+   transition_reveal(`time`)
+  
+leading dots??
 
 ```
   
@@ -146,6 +253,36 @@ census_pop_est_2018 <- read_csv("https://www.dropbox.com/s/6txwv3b4ng7pepe/us_ce
   mutate(state = str_to_lower(state))
 
 states_map <- map_data("state")
+
+cases_with_2018_pop_est <-
+  covid19 %>% 
+  group_by(state) %>%
+  
+  slice_max(order_by = date) %>%  
+  mutate(state = str_to_lower(state)) %>% 
+  left_join(census_pop_est_2018,
+            by = c("state" = "state")) %>% 
+  mutate(cases_per = (cases/est_pop_2018)*10000)
+
+states_map <- map_data("state")
+
+cases_anim<-cases_with_2018_pop_est %>%
+  drop_na() %>% 
+  ggplot() +
+  geom_map(map = states_map,
+           aes(map_id = state,
+               fill = cases_per)) +
+  #This assures the map looks decently nice:
+  expand_limits(x = states_map$long, y = states_map$lat) +
+  scale_fill_viridis_c(option="magma")+
+  theme_map()+
+  transition_reveal(date)
+
+
+
+animate(cases_anim, duration = 200, start_pause = 10, end_pause = 10)
+
+
 ```
 
 ## Your first `shiny` app (for next week!)
