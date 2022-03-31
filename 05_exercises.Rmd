@@ -95,12 +95,13 @@ Stations<-read_csv("http://www.macalester.edu/~dshuman1/data/112/DC-Stations.csv
 ```{r, fig.alt="this is an animated graph showing number of rides throught the day. The graph demonstrates that the morning is the busiest time"}
 
 
-Trips %>% 
+trips <-Trips %>% 
   mutate(time=hour(sdate)+(minute(sdate)/60)) %>% 
   ggplot(aes(x=time))+
   geom_density()+
   transition_reveal(time)
 
+ggplotly(trips,tooltip ="x")
 
 ```
   
@@ -118,17 +119,20 @@ Trips %>%
        y = "")+
   transition_states(day)
 
+ggplotly(trips,tooltip ="x")
+
 ```
   
   
   
   2. Use animation to tell an interesting story with the `small_trains` dataset that contains data from the SNCF (National Society of French Railways). These are Tidy Tuesday data! Read more about it [here](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-02-26).
 
-```{r}
+```{r, fig.alt="this animation shows both which delay causes dominate each month and which months have the highest number of delays."}
 
 small_trains %>%
   ggplot(aes(x=month))+
   geom_density(aes(fill=`delay_cause`),alpha=.5,color=NA,position = position_stack())+
+
   transition_states(month)
 
 ```
@@ -152,9 +156,15 @@ garden_harvest %>%
   complete(variety, 
            date, 
            fill = list(daily_harvest_lb = 0)) %>%
+  group_by(variety) %>% 
   mutate(cum_harvest=cumsum(daily_harvest_lb)) %>% 
   ggplot(aes(y=cum_harvest,x=date))+
-  geom_area(aes(fill=variety))+
+  geom_area(aes(fill=fct_rev(fct_reorder(variety, cum_harvest,mean))))+
+  labs(title = "cum harvest by by variety",
+       subtitle = "`time`: {frame_along}",
+       fill = "variety",
+       x = "",
+       y = "")+
   transition_reveal(date)
 ```
 
@@ -177,7 +187,7 @@ image<-"https://raw.githubusercontent.com/llendway/animation_and_interactivity/m
 world <- get_stamenmap(
     bbox = c(left = 2.3191, bottom = 39.4982, right = 2.7573, top = 39.7143), 
     maptype = "terrain",
-    zoom = 12)
+    zoom = 9)
 
 # Plot the points on the map
 ggmap(world) + # creates the map "background"
@@ -185,19 +195,18 @@ ggmap(world) + # creates the map "background"
              aes(x = lon, y = lat, color = `ele`), 
              alpha = .9, 
              size = 0.9) +
-  geom_point+
-  
-  theme_map()+
+  geom_point(data = mallorca_bike_day7, 
+             aes(x = lon, y = lat, color = `ele`, size=`speed`))+ # shows speed
+  geom_image(data = mallorca_bike_day7, 
+             aes(x = lon, y = lat, color = `ele`,image = image),
+             size = 0.1)+
   labs(title = "Mallorca day 7 bike ride",
        subtitle = "`time`: {frame_along}",
        x = "",
        y = "")+
-  geom_image(aes(image = image),
-             size = 0.2)+
-   transition_reveal(`time`)
-
-where is my leading bike
-
+  
+  theme_map()+
+  transition_reveal(`time`)
 
 ```
   
@@ -211,9 +220,9 @@ d<-bind_rows(panama_swim,panama_bike,panama_run)
 image<-"https://raw.githubusercontent.com/llendway/animation_and_interactivity/master/bike.png"
 
 world <- get_stamenmap(
-    bbox = c(left =-79.5867, bottom =8.8934, right =-79.4160, top = 9.0156), 
+    bbox = c(left =-79.5990, bottom =8.8995, right =-79.4452, top = 9.0067), 
     maptype = "terrain",
-    zoom = 10)
+    zoom = 13)
 
 # Plot the points on the map
 ggmap(world) + # creates the map "background"
@@ -221,18 +230,20 @@ ggmap(world) + # creates the map "background"
              aes(x = lon, y = lat, color = `event`), 
              alpha = .9, 
              size = 0.9) +
-  geom_point()+
+  geom_point(data = d, 
+             aes(x = lon, y = lat, color = `event`))+
   
   theme_map()+
   labs(title = "Mallorca day 7 bike ride",
        subtitle = "`time`: {frame_along}",
        x = "",
        y = "")+
-  geom_image(aes(image = image),
-             size = 0.2)+
+  #geom_image(data = d, 
+         #    aes(x = lon, y = lat, color = `event`,image = image),
+          #   size = 0.2)+
    transition_reveal(`time`)
   
-leading dots??
+
 
 ```
   
@@ -246,7 +257,7 @@ leading dots??
   * Use `group = date` in `aes()`.   
   * Comment on what you see.  
 
-```{r}
+```{r, fig.alt="this anmiation shows covid cases per 10,000 people across all of the US states"}
 census_pop_est_2018 <- read_csv("https://www.dropbox.com/s/6txwv3b4ng7pepe/us_census_2018_state_pop_est.csv?dl=1") %>% 
   separate(state, into = c("dot","state"), extra = "merge") %>% 
   select(-dot) %>% 
@@ -256,38 +267,48 @@ states_map <- map_data("state")
 
 cases_with_2018_pop_est <-
   covid19 %>% 
-  group_by(state) %>%
-  
-  slice_max(order_by = date) %>%  
-  mutate(state = str_to_lower(state)) %>% 
-  left_join(census_pop_est_2018,
+  mutate(state = str_to_lower(state)) %>%
+   left_join(census_pop_est_2018,
             by = c("state" = "state")) %>% 
-  mutate(cases_per = (cases/est_pop_2018)*10000)
+  mutate(cases_per = (cases/`est_pop_2018`)*10000) %>% 
+  
+  filter(day(date) == 15) 
 
 states_map <- map_data("state")
 
-cases_anim<-cases_with_2018_pop_est %>%
+cases_anim<-
+  cases_with_2018_pop_est %>%
   drop_na() %>% 
   ggplot() +
   geom_map(map = states_map,
            aes(map_id = state,
-               fill = cases_per)) +
+               fill = cases_per,
+               group = date)) +
   #This assures the map looks decently nice:
   expand_limits(x = states_map$long, y = states_map$lat) +
-  scale_fill_viridis_c(option="magma")+
+  scale_fill_viridis_c(option="inferno")+
   theme_map()+
-  transition_reveal(date)
+  transition_states(date)
 
 
 
-animate(cases_anim, duration = 200, start_pause = 10, end_pause = 10)
-
+animate(cases_anim, duration = 20, end_pause = 10)
 
 ```
+
+I see that over time interior US states tend to be worse than coastal states. States with more people also seems to be doing better overall.
+
 
 ## Your first `shiny` app (for next week!)
 
   7. This app will also use the COVID data. Make sure you load that data and all the libraries you need in the `app.R` file you create. You should create a new project for the app, separate from the homework project. Below, you will post a link to the app that you publish on shinyapps.io. You will create an app to compare states' daily number of COVID cases per 100,000 over time. The x-axis will be date. You will have an input box where the user can choose which states to compare (`selectInput()`), a slider where the user can choose the date range, and a submit button to click once the user has chosen all states they're interested in comparing. The graph should display a different line for each state, with labels either on the graph or in a legend. Color can be used if needed. 
+  
+```{r}
+
+```
+  
+  
+  
   
 Put the link to your app here: 
   
