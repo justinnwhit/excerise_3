@@ -1,0 +1,66 @@
+---
+title: "tidy_final"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r libraries}
+library(tidyverse)     # for graphing and data cleaning
+library(lubridate)     # for date manipulation
+library(ggthemes)      # for even more plotting themes
+library(ggmap)
+library(ggplot2)
+library(gganimate)
+theme_set(theme_minimal()) # My favorite ggplot() theme :)
+```
+```{r}
+
+all_prices <- readr::read_csv('All_price_info.csv')
+
+
+```
+
+
+
+This data comes form the energy information agency. It is very well cleaned, complete, and comprehensive. We are hoping to answer question about energy transition in the US and its correlation with energy prices. 
+
+
+
+```{r}
+sector_price<- all_prices %>%
+  filter(MSN=='ESCCD'| MSN=='ESICD'| MSN=='ESRCD') %>%
+  pivot_longer(cols = -(c("Data_Status","State","MSN")),
+               names_to = "year",
+               values_to = "price") %>%
+  select(-'Data_Status') %>% 
+mutate(year=year(years(year)))
+  
+
+sector_price$MSN[sector_price$MSN == "ESCCD"] <- "commercial_price"
+sector_price$MSN[sector_price$MSN == "ESICD"] <- "industrial_price"
+sector_price$MSN[sector_price$MSN == "ESRCD"] <- "resid_price"
+```
+
+```{r, width=15, fig.alt="This graph shows how electricity prices have changed from 1970-2020. There are lines for Inustrial, Commericial,and Residential prices. In general prices are increasing"}
+sector_price %>%
+    filter(State=="MN") %>% 
+  ggplot(aes(x=year,y=price,color=MSN))+
+  geom_line()+
+  #transition_reveal(year)+
+  labs(title = "MN Electricity Prices by Sector($/btu)", y="$/btu", x="",color="Sector", caption = "Plot by - Justin White, Source - EIA")+
+  scale_color_discrete(labels = c("Commerical", "Industrial", "Residential"))+
+  theme_wsj(
+  base_size = 8,
+  color = "brown",
+  base_family = "sans",
+  title_family = "mono"
+)
+
+```
+
+
+
